@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk QR Pro: Logo Edition</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
+    <style>
+        :root { --primary: #2563eb; --secondary: #64748b; --excel: #16a34a; --bg: #f8fafc; --danger: #ef4444; --zip: #7c3aed; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; color: #1e293b; }
+        .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 850px; }
+        h1 { margin: 0 0 0.5rem 0; text-align: center; font-size: 1.75rem; color: #0f172a; }
+        .subtitle { text-align: center; color: var(--secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
+        
+        /* Styled Toolbar */
+        .toolbar { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-template { flex: 1; padding: 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; border: none; background: #3b82f6; color: white; font-weight: 600; transition: 0.2s; }
+        .btn-upload { flex: 1; padding: 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; border: none; background: #10b981; color: white; font-weight: 600; transition: 0.2s; }
+        .btn-clear { flex: 0.5; padding: 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; border: 1px solid #fee2e2; background: #fff; color: var(--danger); font-weight: 600; }
+        
+        .btn-template:hover { background: #2563eb; }
+        .btn-upload:hover { background: #059669; }
+        .btn-clear:hover { background: #fef2f2; }
+
+        .settings-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .setting-item { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; font-weight: 700; }
+        input[type="color"], select { width: 100%; height: 35px; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer; }
+        
+        /* Logo Button Styling */
+        .logo-btn { background: white; border: 1px solid #cbd5e1; height: 35px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .logo-btn:hover { background: #f8fafc; }
+        .logo-active { border-color: #10b981; color: #059669; background: #ecfdf5; }
+
+        textarea { width: 100%; height: 160px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; resize: none; font-family: monospace; }
+        .info-bar { display: flex; justify-content: space-between; padding: 8px; font-size: 0.85rem; font-weight: 700; color: var(--secondary); }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .full-width { grid-column: span 2; }
+        button.action-btn { border: none; padding: 14px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; color: white; }
+        button:disabled { background: #cbd5e1 !important; cursor: not-allowed; }
+        
+        .btn-gen-zip { background: var(--primary); }
+        .btn-gen-only { background: #334155; }
+        .btn-zip-only { background: var(--zip); }
+        .btn-csv { background: var(--secondary); }
+        .btn-xls { background: var(--excel); }
+
+        .progress-container { display: none; margin-top: 20px; background: #e2e8f0; border-radius: 10px; height: 10px; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background: var(--primary); }
+        
+        #preview-gallery { margin-top: 25px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; border-top: 1px solid #e2e8f0; padding-top: 20px; max-height: 400px; overflow-y: auto; }
+        .preview-item { font-size: 0.7rem; text-align: center; padding: 5px; background: #fff; border-radius: 8px; border: 1px solid #eee; }
+        .preview-item img { width: 100%; border-radius: 4px; }
+        #qr-helper { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>J&T KH021</h1>
+    <p class="subtitle">Phone QR Management</p>
+    
+    <div class="toolbar">
+        <button class="btn-template" onclick="downloadSample()">📄 Template</button>
+        <button class="btn-upload" onclick="document.getElementById('csvFile').click()">📂 Upload List</button>
+        <button class="btn-clear" onclick="clearAll()">🗑️ Clear</button>
+        <input type="file" id="csvFile" accept=".csv, .txt" style="display: none;" onchange="handleFileUpload(this)">
+    </div>
+
+    <div class="settings-bar">
+        <div class="setting-item">
+            <label>QR Color</label>
+            <input type="color" id="fgColor" value="#000000">
+        </div>
+        <div class="setting-item">
+            <label>BG Color</label>
+            <input type="color" id="bgColor" value="#ffffff">
+        </div>
+        <div class="setting-item">
+            <label>ECC Level</label>
+            <select id="eccLevel">
+                <option value="L">Low (7%)</option>
+                <option value="M">Med (15%)</option>
+                <option value="H" selected>High (30% - Best for Logos)</option>
+            </select>
+        </div>
+        <div class="setting-item">
+            <label>Logo Integration</label>
+            <button id="logoBtn" class="logo-btn" onclick="document.getElementById('logoInput').click()">
+                🖼️ Upload Logo
+            </button>
+            <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="loadLogo(this)">
+        </div>
+    </div>
+
+    <textarea id="numbers" placeholder="Paste phone numbers (one per line)..." oninput="updateCount()"></textarea>
+    
+    <div class="info-bar">
+        <span id="countDisplay">Count: 0</span>
+        <span>Limit: 1000</span>
+    </div>
+
+    <div class="action-grid">
+        <button id="genZipBtn" class="action-btn btn-gen-zip full-width" onclick="processBulk(true)">Generate & Download ZIP</button>
+        <button id="genOnlyBtn" class="action-btn btn-gen-only" onclick="processBulk(false)">Generate QR Codes</button>
+        <button id="zipOnlyBtn" class="action-btn btn-zip-only" onclick="downloadCurrentZip()" disabled>Download ZIP Only</button>
+        <button id="csvBtn" class="action-btn btn-csv" onclick="exportData('csv')" disabled>Export CSV</button>
+        <button id="xlsBtn" class="action-btn btn-xls" onclick="exportToExcel()" disabled>Export Excel</button>
+    </div>
+
+    <div class="progress-container" id="pContainer"><div class="progress-bar" id="pBar"></div></div>
+    <div id="status" style="text-align:center; margin-top:10px; font-weight:bold;">Ready</div>
+    <div id="preview-gallery"></div>
+    <div id="qr-helper"></div>
+</div>
+
+<script>
+    let processedData = [];
+    let currentZipBlob = null;
+    let logoImg = null;
+
+    function updateCount() {
+        const lines = document.getElementById('numbers').value.trim().split('\n').filter(l => l.trim() !== "");
+        document.getElementById('countDisplay').innerText = `Count: ${lines.length}`;
+        const isValid = lines.length > 0 && lines.length <= 1000;
+        document.getElementById('genZipBtn').disabled = !isValid;
+        document.getElementById('genOnlyBtn').disabled = !isValid;
+    }
+
+    function loadLogo(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                logoImg = new Image();
+                logoImg.onload = () => { 
+                    const btn = document.getElementById('logoBtn');
+                    btn.classList.add('logo-active');
+                    btn.innerText = "✅ Logo Loaded";
+                    document.getElementById('status').innerText = "Logo ready for generation!";
+                };
+                logoImg.src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function processBulk(shouldDownloadZip) {
+        const lines = document.getElementById('numbers').value.trim().split('\n').filter(l => l !== "");
+        const fg = document.getElementById('fgColor').value;
+        const bg = document.getElementById('bgColor').value;
+        const eccChar = document.getElementById('eccLevel').value;
+        const eccMap = { 'L': QRCode.CorrectLevel.L, 'M': QRCode.CorrectLevel.M, 'H': QRCode.CorrectLevel.H };
+        
+        const gallery = document.getElementById('preview-gallery');
+        const zip = new JSZip();
+        gallery.innerHTML = "";
+        processedData = [];
+        document.getElementById('pContainer').style.display = "block";
+
+        for (let i = 0; i < lines.length; i++) {
+            const phone = lines[i].trim();
+            const helper = document.getElementById('qr-helper');
+            helper.innerHTML = "";
+            
+            // Generate QR
+            new QRCode(helper, { 
+                text: "tel:" + phone, width: 400, height: 400, 
+                colorDark: fg, colorLight: bg, correctLevel: eccMap[eccChar] 
+            });
+
+            await new Promise(r => setTimeout(r, 60));
+            const baseQrCanvas = helper.querySelector('canvas');
+            
+            // Create Composite Canvas
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = 400;
+            finalCanvas.height = 400;
+            const ctx = finalCanvas.getContext('2d');
+            ctx.drawImage(baseQrCanvas, 0, 0);
+
+            // Overlay Logo
+            if (logoImg) {
+                const logoSize = 400 * 0.22;
+                const pos = (400 - logoSize) / 2;
+                ctx.fillStyle = bg; 
+                ctx.fillRect(pos - 5, pos - 5, logoSize + 10, logoSize + 10);
+                ctx.drawImage(logoImg, pos, pos, logoSize, logoSize);
+            }
+
+            const finalDataUrl = finalCanvas.toDataURL("image/png");
+            processedData.push({ phone, base64: finalDataUrl });
+            zip.file(`QR_${phone.replace(/\D/g,'')}.png`, finalDataUrl.split(',')[1], {base64: true});
+
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+            div.innerHTML = `<img src="${finalDataUrl}"><br><b>${phone}</b>`;
+            gallery.appendChild(div);
+
+            document.getElementById('pBar').style.width = ((i + 1) / lines.length * 100) + "%";
+            document.getElementById('status').innerText = `Progress: ${i + 1} / ${lines.length}`;
+        }
+
+        currentZipBlob = await zip.generateAsync({type: "blob"});
+        if(shouldDownloadZip) saveAs(currentZipBlob, `QR_Batch_Export.zip`);
+        
+        ['zipOnlyBtn', 'csvBtn', 'xlsBtn'].forEach(id => document.getElementById(id).disabled = false);
+        document.getElementById('status').innerText = "All codes processed!";
+    }
+
+    function clearAll() {
+        if(confirm("Wipe all data and reset logo?")) {
+            document.getElementById('numbers').value = "";
+            document.getElementById('preview-gallery').innerHTML = "";
+            logoImg = null;
+            processedData = [];
+            const lBtn = document.getElementById('logoBtn');
+            lBtn.classList.remove('logo-active');
+            lBtn.innerText = "🖼️ Upload Logo";
+            updateCount();
+            document.getElementById('status').innerText = "Ready";
+        }
+    }
+
+    async function exportToExcel() {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('QR Inventory');
+        sheet.columns = [{ header: 'Phone Number', key: 'p', width: 25 }, { header: 'QR Image', key: 'q', width: 25 }];
+        processedData.forEach((d, i) => {
+            const row = sheet.addRow({ p: d.phone });
+            row.height = 110;
+            const imgId = workbook.addImage({ base64: d.base64, extension: 'png' });
+            sheet.addImage(imgId, { tl: { col: 1.1, row: i + 1.1 }, ext: { width: 120, height: 120 } });
+        });
+        saveAs(new Blob([await workbook.xlsx.writeBuffer()]), "QR_Excel_Catalog.xlsx");
+    }
+
+    function exportData(f) {
+        const csv = ["Filename,Phone Number"];
+        processedData.forEach(d => csv.push(`"QR_${d.phone.replace(/\D/g,'')}.png","${d.phone}"`));
+        saveAs(new Blob([csv.join("\n")], { type: 'text/csv' }), "qr_list_summary.csv");
+    }
+
+    function downloadCurrentZip() { if(currentZipBlob) saveAs(currentZipBlob, "QR_Archive.zip"); }
+    function downloadSample() { saveAs(new Blob(["Phone\n+1234567890"], {type: 'text/csv'}), "template.csv"); }
+    function handleFileUpload(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('numbers').value = e.target.result.split('\n').map(l => l.replace(/[",]/g, "").trim()).filter(l => l !== "" && l.toLowerCase().indexOf("phone") === -1).join('\n');
+            updateCount();
+        };
+        reader.readAsText(input.files[0]);
+    }
+</script>
+</body>
+</html>
